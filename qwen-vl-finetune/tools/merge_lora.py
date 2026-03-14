@@ -52,22 +52,22 @@ def load_base_model(model_path: str, torch_dtype: Union[str, torch.dtype]):
     if model_type == "qwen3vl_moe":
         from transformers import Qwen3VLMoeForConditionalGeneration
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map="cpu"
+            model_path, dtype=torch_dtype, device_map="cpu"
         )
     elif model_type == "qwen3vl":
         from transformers import Qwen3VLForConditionalGeneration
         model = Qwen3VLForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map="cpu"
+            model_path, dtype=torch_dtype, device_map="cpu"
         )
     elif model_type == "qwen2.5vl":
         from transformers import Qwen2_5_VLForConditionalGeneration
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map="cpu"
+            model_path, dtype=torch_dtype, device_map="cpu"
         )
     else:
         from transformers import Qwen2VLForConditionalGeneration
         model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map="cpu"
+            model_path, dtype=torch_dtype, device_map="cpu"
         )
 
     return model

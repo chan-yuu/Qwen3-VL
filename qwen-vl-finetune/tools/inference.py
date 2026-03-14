@@ -105,22 +105,22 @@ def load_model(
     if model_type == "qwen3vl_moe":
         from transformers import Qwen3VLMoeForConditionalGeneration
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map=device
+            model_path, dtype=torch_dtype, device_map=device
         )
     elif model_type == "qwen3vl":
         from transformers import Qwen3VLForConditionalGeneration
         model = Qwen3VLForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map=device
+            model_path, dtype=torch_dtype, device_map=device
         )
     elif model_type == "qwen2.5vl":
         from transformers import Qwen2_5_VLForConditionalGeneration
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map=device
+            model_path, dtype=torch_dtype, device_map=device
         )
     else:
         from transformers import Qwen2VLForConditionalGeneration
         model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch_dtype, device_map=device
+            model_path, dtype=torch_dtype, device_map=device
         )
 
     if checkpoint_path:
@@ -165,9 +165,13 @@ def run_inference(
 ):
     from qwen_vl_utils import process_vision_info
 
-    # Apply chat template
+    # Apply chat template.
+    # For Qwen3-VL, enable_thinking is a chat-template option, not a generate kwarg.
+    template_kwargs = {}
+    if model_type in ("qwen3vl", "qwen3vl_moe"):
+        template_kwargs["enable_thinking"] = enable_thinking
     text = processor.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
+        messages, tokenize=False, add_generation_prompt=True, **template_kwargs
     )
 
     if model_type in ("qwen3vl", "qwen3vl_moe"):
@@ -213,8 +217,6 @@ def run_inference(
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
     generate_kwargs = dict(max_new_tokens=max_new_tokens)
-    if model_type in ("qwen3vl", "qwen3vl_moe"):
-        generate_kwargs["enable_thinking"] = enable_thinking
 
     with torch.no_grad():
         generated_ids = model.generate(**inputs, **generate_kwargs)
