@@ -44,6 +44,28 @@ import torch
 from pathlib import Path
 from typing import Optional, Union
 
+# ---------------------------------------------------------------------------
+# Path setup — ensure repo-local packages are importable even when the script
+# is invoked directly (i.e. without a prior `pip install`).
+#
+# Repository layout:
+#   <repo_root>/
+#     qwen-vl-finetune/
+#       tools/
+#         inference.py   ← this file
+#     qwen-vl-utils/
+#       src/
+#         qwen_vl_utils/ ← package used at inference time
+# ---------------------------------------------------------------------------
+_TOOLS_DIR = Path(__file__).resolve().parent          # …/qwen-vl-finetune/tools
+_FINETUNE_DIR = _TOOLS_DIR.parent                     # …/qwen-vl-finetune
+_REPO_ROOT = _FINETUNE_DIR.parent                     # repo root
+_QWEN_VL_UTILS_SRC = _REPO_ROOT / "qwen-vl-utils" / "src"
+
+for _p in [str(_REPO_ROOT), str(_QWEN_VL_UTILS_SRC), str(_FINETUNE_DIR)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 from transformers import AutoProcessor
 
 
