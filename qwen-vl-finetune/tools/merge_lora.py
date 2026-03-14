@@ -27,11 +27,46 @@ from typing import Union
 
 
 def _detect_model_type(model_path: str) -> str:
-    """Detect the Qwen-VL model family from the model path or name.
+    """Detect the Qwen-VL model family from the model config or path name.
+
+    Detection order:
+    1. Read ``config.json`` from a local directory (most reliable; works for
+       merged / renamed model directories whose path no longer contains the
+       original model name).
+    2. Fall back to path/name string matching (useful for HuggingFace Hub IDs
+       where no local config file exists yet).
 
     MoE models (e.g. Qwen3-VL-30B-A3B-Instruct, Qwen3-VL-235B-A22B-Instruct)
-    are identified by the ``<total>B-A<active>B`` naming pattern.
+    are identified either by ``model_type == "qwen3_vl_moe"`` in the config or
+    by the ``<total>B-A<active>B`` naming pattern in the path.
     """
+    import json
+
+    # --- 1. Config-file based detection (local directories) -----------------
+    config_path = os.path.join(model_path, "config.json")
+    if os.path.isfile(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            config_model_type = cfg.get("model_type", "").lower()
+            if config_model_type == "qwen3_vl_moe":
+                return "qwen3vl_moe"
+            elif config_model_type == "qwen3_vl":
+                # Still check for MoE via path pattern in case the config
+                # uses a shared model_type for both dense and MoE variants.
+                name = Path(model_path.rstrip("/")).name.lower()
+                if re.search(r"\d+b-a\d+b", name):
+                    return "qwen3vl_moe"
+                return "qwen3vl"
+            elif config_model_type == "qwen2_5_vl":
+                return "qwen2.5vl"
+            elif config_model_type == "qwen2_vl":
+                return "qwen2vl"
+            # Unknown config model_type — fall through to path-name heuristics
+        except (OSError, json.JSONDecodeError):
+            pass  # Fall through to path-name heuristics
+
+    # --- 2. Path/name string matching (HuggingFace Hub IDs, etc.) -----------
     name = Path(model_path.rstrip("/")).name.lower()
     full = model_path.lower()
     # MoE pattern: something like "30b-a3b" or "235b-a22b"
