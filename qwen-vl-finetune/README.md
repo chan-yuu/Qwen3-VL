@@ -22,6 +22,8 @@ The `qwenvl` directory contains the following components:
 ### `tools`
 - `process_bbox.ipynb`: Convert bbox into QwenVL format. If you have grounding data, please refer this file to tranform your data.
 - `pack_data.py`: Pack data into even length buckets.
+- `inference.py`: Run inference with a fine-tuned or LoRA checkpoint (see [Inference](#inference) below).
+- `merge_lora.py`: Merge LoRA adapter weights into the base model and save a standalone model (see [Merging LoRA weights](#merging-lora-weights) below).
 
 ## Requirements
 
@@ -316,3 +318,80 @@ The script accepts arguments in three categories:
    - `"_attn_implementation": "flash_attention_2",` could be add in the config.json of the model to use flash attention.
    - The Qwen3VL MoE model does not support DeepSpeed with ZeRO-3. Additionally, Hugging Face’s official implementation does not include support for load balancing loss currently.
 
+
+## Inference
+
+After training you can test the fine-tuned model using `tools/inference.py`.
+
+### Using a LoRA checkpoint directly
+
+Provide the base model path with `--model_path` and the checkpoint directory
+with `--checkpoint_path`. The script automatically detects the adapter config
+and loads the LoRA weights on top of the base model.
+
+```bash
+python tools/inference.py \
+    --model_path /path/to/Qwen3-VL-2B-Instruct \
+    --checkpoint_path ./checkpoints/checkpoint-500 \
+    --image /path/to/image.jpg \
+    --prompt "Describe this image."
+```
+
+### Using a video input
+
+```bash
+python tools/inference.py \
+    --model_path /path/to/Qwen3-VL-2B-Instruct \
+    --checkpoint_path ./checkpoints/checkpoint-500 \
+    --video /path/to/video.mp4 \
+    --prompt "Describe what happens in this video."
+```
+
+### Text-only query
+
+```bash
+python tools/inference.py \
+    --model_path /path/to/Qwen3-VL-2B-Instruct \
+    --checkpoint_path ./checkpoints/checkpoint-500 \
+    --prompt "What is the capital of France?"
+```
+
+### Full list of options
+
+| Argument | Default | Description |
+|---|---|---|
+| `--model_path` | *(required)* | Base model path or HuggingFace model ID |
+| `--checkpoint_path` | `None` | LoRA checkpoint directory; omit for merged / full models |
+| `--image` | `None` | Path or URL to an input image |
+| `--video` | `None` | Path or URL to an input video |
+| `--prompt` | *(required)* | Text prompt / question |
+| `--max_new_tokens` | `512` | Maximum tokens to generate |
+| `--torch_dtype` | `bfloat16` | Weight dtype (`auto`, `bfloat16`, `float16`, `float32`) |
+| `--device` | `auto` | Device map (`auto`, `cuda`, `cpu`) |
+| `--enable_thinking` | `False` | Enable thinking mode (Qwen3-VL only) |
+
+## Merging LoRA weights
+
+For deployment or use with vLLM / the web demo, it is often more convenient to
+merge the LoRA adapter into the base model first:
+
+```bash
+python tools/merge_lora.py \
+    --model_path /path/to/Qwen3-VL-2B-Instruct \
+    --checkpoint_path ./checkpoints/checkpoint-500 \
+    --output_path ./merged_model
+```
+
+The merged model directory is fully self-contained (weights + processor) and
+can be used anywhere a standard Qwen-VL model is expected:
+
+```bash
+# Inference with the merged model (no --checkpoint_path needed)
+python tools/inference.py \
+    --model_path ./merged_model \
+    --image /path/to/image.jpg \
+    --prompt "Describe this image."
+
+# Web demo
+python web_demo_mm.py --checkpoint-path ./merged_model --backend hf
+```
